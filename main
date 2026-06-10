@@ -1,0 +1,267 @@
+# kitap ödünç takip sistemi
+
+class Book:
+    def __init__(self, title, author, is_borrowed=False, borrowed_by=""):
+        self.title = title
+        self.author = author
+        self.is_borrowed = is_borrowed
+        self.borrowed_by = borrowed_by
+
+    def borrow(self, student_number):
+        self.is_borrowed = True
+        self.borrowed_by = student_number
+
+    def return_book(self):
+        self.is_borrowed = False
+        self.borrowed_by = ""
+
+    def get_status(self):
+        if self.is_borrowed:
+            return f"Ödünçte - Öğrenci No: {self.borrowed_by}"
+        return "Müsait"
+
+    def to_file_format(self):
+        return f"BOOK|{self.title}|{self.author}|{self.is_borrowed}|{self.borrowed_by}"
+
+    def __str__(self):
+        return f"{self.title} - {self.author} | Durum: {self.get_status()}"
+
+
+class Student:
+    def __init__(self, number, name):
+        self.number = number
+        self.name = name
+
+    def to_file_format(self):
+        return f"STUDENT|{self.number}|{self.name}"
+
+    def __str__(self):
+        return f"{self.number} - {self.name}"
+
+
+class LibrarySystem:
+    def __init__(self, file_name):
+        self.file_name = file_name
+        self.books = []
+        self.students = []
+        self.load_data()
+
+    def add_book(self):
+        title = input("Kitap adı: ").strip()
+        author = input("Yazar adı: ").strip()
+
+        if title == "" or author == "":
+            print("Kitap adı ve yazar adı boş bırakılamaz.")
+            return
+
+        book = Book(title, author)
+        self.books.append(book)
+        print("Kitap başarıyla eklendi.")
+
+    def list_books(self):
+        if len(self.books) == 0:
+            print("Henüz kitap eklenmemiş.")
+            return
+
+        print("\n--- Kitap Listesi ---")
+        for index, book in enumerate(self.books, start=1):
+            print(f"{index}. {book}")
+
+    def add_student(self):
+        number = input("Öğrenci numarası: ").strip()
+        name = input("Öğrenci adı: ").strip()
+
+        if number == "" or name == "":
+            print("Öğrenci numarası ve adı boş bırakılamaz.")
+            return
+
+        for student in self.students:
+            if student.number == number:
+                print("Bu öğrenci numarası zaten kayıtlı.")
+                return
+
+        student = Student(number, name)
+        self.students.append(student)
+        print("Öğrenci başarıyla eklendi.")
+
+    def list_students(self):
+        if len(self.students) == 0:
+            print("Henüz öğrenci eklenmemiş.")
+            return
+
+        print("\n--- Öğrenci Listesi ---")
+        for index, student in enumerate(self.students, start=1):
+            print(f"{index}. {student}")
+
+    def find_student_by_number(self, number):
+        for student in self.students:
+            if student.number == number:
+                return student
+        return None
+
+    def borrow_book(self):
+        if len(self.books) == 0:
+            print("Ödünç verilecek kitap yok.")
+            return
+
+        if len(self.students) == 0:
+            print("Önce öğrenci eklemelisiniz.")
+            return
+
+        self.list_books()
+        self.list_students()
+
+        try:
+            book_number = int(input("Ödünç verilecek kitap numarası: "))
+
+            if book_number < 1 or book_number > len(self.books):
+                print("Geçersiz kitap numarası.")
+                return
+
+            student_number = input("Kitabı alacak öğrenci numarası: ").strip()
+            student = self.find_student_by_number(student_number)
+
+            if student is None:
+                print("Bu öğrenci bulunamadı.")
+                return
+
+            selected_book = self.books[book_number - 1]
+
+            if selected_book.is_borrowed:
+                print("Bu kitap zaten ödünçte.")
+                return
+
+            selected_book.borrow(student_number)
+            print("Kitap başarıyla ödünç verildi.")
+
+        except ValueError:
+            print("Lütfen geçerli bir kitap numarası girin.")
+
+    def return_book(self):
+        if len(self.books) == 0:
+            print("İade alınacak kitap yok.")
+            return
+
+        self.list_books()
+
+        try:
+            book_number = int(input("İade alınacak kitap numarası: "))
+
+            if book_number < 1 or book_number > len(self.books):
+                print("Geçersiz kitap numarası.")
+                return
+
+            selected_book = self.books[book_number - 1]
+
+            if not selected_book.is_borrowed:
+                print("Bu kitap zaten müsait durumda.")
+                return
+
+            selected_book.return_book()
+            print("Kitap başarıyla iade alındı.")
+
+        except ValueError:
+            print("Lütfen geçerli bir kitap numarası girin.")
+
+    def list_borrowed_books(self):
+        borrowed_count = 0
+        print("\n--- Ödünçteki Kitaplar ---")
+
+        for index, book in enumerate(self.books, start=1):
+            if book.is_borrowed:
+                print(f"{index}. {book}")
+                borrowed_count += 1
+
+        if borrowed_count == 0:
+            print("Şu anda ödünçte kitap yok.")
+
+    def save_data(self):
+        try:
+            with open(self.file_name, "w", encoding="utf-8") as file:
+                for book in self.books:
+                    file.write(book.to_file_format() + "\n")
+
+                for student in self.students:
+                    file.write(student.to_file_format() + "\n")
+
+            print("Veriler başarıyla kaydedildi.")
+
+        except Exception as error:
+            print("Dosyaya kaydetme sırasında hata oluştu.")
+            print("Hata:", error)
+
+    def load_data(self):
+        try:
+            with open(self.file_name, "r", encoding="utf-8") as file:
+                for line in file:
+                    line = line.strip()
+
+                    if line == "":
+                        continue
+
+                    parts = line.split("|")
+
+                    if parts[0] == "BOOK":
+                        title = parts[1]
+                        author = parts[2]
+                        is_borrowed = parts[3] == "True"
+                        borrowed_by = parts[4] if len(parts) > 4 else ""
+
+                        book = Book(title, author, is_borrowed, borrowed_by)
+                        self.books.append(book)
+
+                    elif parts[0] == "STUDENT":
+                        number = parts[1]
+                        name = parts[2]
+
+                        student = Student(number, name)
+                        self.students.append(student)
+        except FileNotFoundError:
+            pass
+        except Exception as error:
+            print("Dosyadan veri okunurken hata oluştu.")
+            print("Hata:", error)
+
+def show_menu():
+    print("\n===== MİNİ KÜTÜPHANE SİSTEMİ =====")
+    print("1. Kitap Ekle")
+    print("2. Kitapları Listele")
+    print("3. Öğrenci Ekle")
+    print("4. Öğrencileri Listele")
+    print("5. Kitap Ödünç Ver")
+    print("6. Kitap İade Al")
+    print("7. Ödünçteki Kitapları Göster")
+    print("8. Kaydet ve Çık")
+
+
+def main():
+    library = LibrarySystem("library_data.txt")
+
+    while True:
+        show_menu()
+        choice = input("Seçiminiz: ").strip()
+
+        if choice == "1":
+            library.add_book()
+        elif choice == "2":
+            library.list_books()
+        elif choice == "3":
+            library.add_student()
+        elif choice == "4":
+            library.list_students()
+        elif choice == "5":
+            library.borrow_book()
+        elif choice == "6":
+            library.return_book()
+        elif choice == "7":
+            library.list_borrowed_books()
+        elif choice == "8":
+            library.save_data()
+            print("Program kapatılıyor.")
+            break
+        else:
+            print("Geçersiz seçim. Lütfen 1-8 arasında bir değer girin.")
+
+if __name__ == "__main__":
+
+    main()
